@@ -43,7 +43,7 @@ def pixel2complex(
     STEP_X = 3.0 / render_size_x
     STEP_Y = 2.0 / render_size_y
 
-    TOP_LEFT_X = -1.5
+    TOP_LEFT_X = -2.0
     TOP_LEFT_Y = 1.0
 
     out_re = STEP_X * pixel_x + TOP_LEFT_X
@@ -67,21 +67,36 @@ def calculate_iters(size_x, size_y) -> Any:
 @cli.command()  # type: ignore[attr-defined]
 @click.argument("draw_res")
 @click.argument("render_res")
-def mandelbrot(draw_res: str, render_res: str):
+@click.argument("display_res", required=False)
+def mandelbrot(draw_res: str, render_res: str, display_res: str = None):
     """Draw the main region of the mandelbrot set at a resolution of
-    draw_res_x,draw_res_y and render it at render_res_x,render_res_y
+    draw_res_x,draw_res_y and render it at render_res_x,render_res_y.
+    Optionally, scale the output to display_res_x,display_res_y for display.
     """
     draw_resolution_x, draw_resolution_y = [int(i) for i in draw_res.split(",")]
     render_resolution_x, render_resolution_y = [int(i) for i in render_res.split(",")]
 
     mandelbrot_output = calculate_iters(render_resolution_x, render_resolution_y)
 
-    click.echo(mandelbrot_output)
+    # Pixelate: resize from render_resolution to draw_resolution using INTER_AREA for downsampling
+    canvas = cv.resize(
+        mandelbrot_output,
+        (draw_resolution_x, draw_resolution_y),
+        interpolation=cv.INTER_AREA,
+    )
 
-    # canvas = np.zeros([draw_resolution_y, draw_resolution_x, 3], dtype=np.uint8)
+    # If display_res is provided, scale up for display
+    if display_res:
+        display_resolution_x, display_resolution_y = [
+            int(i) for i in display_res.split(",")
+        ]
+        display_canvas = cv.resize(
+            canvas,
+            (display_resolution_x, display_resolution_y),
+            interpolation=cv.INTER_NEAREST,  # Nearest for crisp pixelation
+        )
+    else:
+        display_canvas = canvas
 
-    # click.echo(canvas)
-
-    cv.imshow("Canvas", mandelbrot_output)  # pylint: disable=no-member
-
+    cv.imshow("Canvas", display_canvas)  # pylint: disable=no-member
     cv.waitKey()  # pylint: disable=no-member
